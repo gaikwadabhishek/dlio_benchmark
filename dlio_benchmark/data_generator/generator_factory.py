@@ -52,8 +52,13 @@ class GeneratorFactory(object):
                 from dlio_benchmark.data_generator.npy_generator import NPYGenerator
                 return NPYGenerator()            
         elif type == FormatType.JPEG:
-            from dlio_benchmark.data_generator.jpeg_generator import JPEGGenerator
-            return JPEGGenerator()
+            # Use S3 generators for both S3 and AIStore
+            if _args.storage_type in (StorageType.S3, StorageType.AISTORE):
+                from dlio_benchmark.data_generator.jpeg_generator_s3 import JPEGGeneratorS3
+                return JPEGGeneratorS3()
+            else:
+                from dlio_benchmark.data_generator.jpeg_generator import JPEGGenerator
+                return JPEGGenerator()
         elif type == FormatType.PNG:
             from dlio_benchmark.data_generator.png_generator import PNGGenerator
             return PNGGenerator()

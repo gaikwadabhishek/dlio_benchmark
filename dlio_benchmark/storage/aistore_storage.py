@@ -24,6 +24,7 @@ try:
     from aistore.sdk.bucket import Bucket
     from aistore.sdk.obj.object import Object
     from aistore.sdk.errors import AISError
+
     AISTORE_AVAILABLE = True
 except ImportError:
     AISTORE_AVAILABLE = False
@@ -53,55 +54,64 @@ class AIStoreStorage(DataStorage):
                 "AIStore SDK is required but not installed."
                 "Install it with: `pip install aistore`"
             )
-        
+
         # Call DataStorage.__init__ to set up framework
         super().__init__(framework)
-        
+
         # Create namespace (AIStore uses flat namespace like S3)
         self.namespace = Namespace(namespace, NamespaceType.FLAT)
-        
+
         # Access config values from self._args (inherited from DataStorage)
         storage_options = getattr(self._args, "storage_options", {}) or {}
-        
+
         # AIStore endpoint (default: http://localhost:8080)
         self.endpoint = storage_options.get("endpoint_url", "http://localhost:8080")
-                 
+
         # Initialize AIStore client
         # Other parameters can be configured from environment variables
         self.client = Client(self.endpoint)
-        
+
         # Bucket name from namespace
         self.bucket_name = self.namespace.name
         self.bucket = None
-        
-        logging.info(f"AIStore native storage initialized: endpoint={self.endpoint}, bucket=s3://{self.bucket_name}")
+
+        logging.info(
+            f"AIStore native storage initialized: endpoint={self.endpoint}, bucket=s3://{self.bucket_name}"
+        )
 
     def _clean_key(self, id):
         """
-        Extract the object key from a full S3 URI.
-        
+        Extract the object key from a full S3/AIS URI.
+
         Why this is needed:
         - S3 generators (NPYGeneratorS3, NPYReaderS3) pass full URIs like:
           "s3://dlio-benchmark-native/train/img_08_of_16.npy"
+          or "ais://dlio-benchmark-native/train/img_08_of_16.npy"
         - AIStore SDK expects just the object key:
           "train/img_08_of_16.npy"
-        - This method strips the "s3://" prefix and bucket name
-        
-        Handles: s3://bucket/path/file.ext -> path/file.ext
+        - This method strips the "s3://" or "ais://" prefix and bucket name
+
+        Handles: 
+          s3://bucket/path/file.ext -> path/file.ext
+          ais://bucket/path/file.ext -> path/file.ext
         """
         key = str(id)
 
-        # Remove all s3:// prefixes (there might be multiple due to path construction)
-        while key.startswith("s3://"):
-            key = key[5:]  # Remove "s3://"
-            # After removing s3://, also remove bucket name if it's the next part
+        # Remove all s3:// or ais:// prefixes (there might be multiple due to path construction)
+        while key.startswith("s3://") or key.startswith("ais://"):
+            if key.startswith("s3://"):
+                key = key[5:]  # Remove "s3://"
+            elif key.startswith("ais://"):
+                key = key[6:]  # Remove "ais://"
+            
+            # After removing prefix, also remove bucket name if it's the next part
             if key.startswith(f"{self.bucket_name}/"):
-                key = key[len(self.bucket_name) + 1:]
+                key = key[len(self.bucket_name) + 1 :]
             elif key.startswith(self.bucket_name):
-                key = key[len(self.bucket_name):]
+                key = key[len(self.bucket_name) :]
                 if key.startswith("/"):
                     key = key[1:]
-        
+
         return key
 
     @dlp.log
@@ -116,6 +126,7 @@ class AIStoreStorage(DataStorage):
     def create_namespace(self, exist_ok=False):
         """Create AIStore bucket if it doesn't exist"""
         self.bucket = self.client.bucket(self.bucket_name).create(exist_ok=exist_ok)
+        return True
 
     @dlp.log
     def get_namespace(self):
@@ -132,14 +143,14 @@ class AIStoreStorage(DataStorage):
         try:
             if not self.bucket:
                 self.bucket = self.client.bucket(self.bucket_name)
-            
+
             key = self._clean_key(id) if id else ""
-            
+
             if not key:  # Check bucket
                 if self.bucket.head():
                     return {"type": "bucket"}
                 return None
-            
+
             # Check object
             obj = self.bucket.object(key)
             props = obj.head()
@@ -159,26 +170,26 @@ class AIStoreStorage(DataStorage):
         try:
             if not self.bucket:
                 self.bucket = self.client.bucket(self.bucket_name)
-            
+
             prefix = self._clean_key(id) if id else ""
             objects = []
-            
+
             # Use list_objects_iter for iterable results (not list_objects which returns BucketList)
             for entry in self.bucket.list_objects_iter(prefix=prefix):
                 obj_name = entry.name
-                
+
                 # Remove the prefix to get just the filename
                 # e.g., "train/img_00_of_16.npy" with prefix "train" -> "img_00_of_16.npy"
                 if prefix and obj_name.startswith(prefix):
                     # Remove prefix
-                    relative_name = obj_name[len(prefix):]
+                    relative_name = obj_name[len(prefix) :]
                     # Remove leading slash if present
-                    if relative_name.startswith('/'):
+                    if relative_name.startswith("/"):
                         relative_name = relative_name[1:]
                     objects.append(relative_name)
                 else:
                     objects.append(obj_name)
-            
+
             logging.debug(f"walk_node: prefix={prefix}, found {len(objects)} objects")
             return objects
         except Exception as e:
@@ -191,7 +202,7 @@ class AIStoreStorage(DataStorage):
         try:
             if not self.bucket:
                 self.bucket = self.client.bucket(self.bucket_name)
-            
+
             key = self._clean_key(id)
             obj = self.bucket.object(key)
             obj.delete()
@@ -207,9 +218,9 @@ class AIStoreStorage(DataStorage):
         try:
             if not self.bucket:
                 self.bucket = self.client.bucket(self.bucket_name)
-            
+
             key = self._clean_key(id)
-            
+
             # Convert data to bytes
             if isinstance(data, io.BytesIO):
                 data.seek(0)
@@ -218,7 +229,7 @@ class AIStoreStorage(DataStorage):
                 body = data
             else:
                 body = bytes(data)
-            
+
             # Put object
             obj = self.bucket.object(key)
             obj.get_writer().put_content(body)
@@ -237,10 +248,10 @@ class AIStoreStorage(DataStorage):
         try:
             if not self.bucket:
                 self.bucket = self.client.bucket(self.bucket_name)
-            
+
             key = self._clean_key(id)
             obj = self.bucket.object(key)
-            
+
             # Handle range reads
             byte_range = None
             if offset is not None and length is not None:
@@ -257,7 +268,7 @@ class AIStoreStorage(DataStorage):
                 content = obj.get_reader(byte_range=byte_range).read_all()
             else:
                 content = obj.get_reader().read_all()
-            
+
             return content
         except Exception as e:
             logging.error(f"Error getting data from {id}: {e}")
@@ -278,4 +289,3 @@ class AIStoreStorage(DataStorage):
     def get_basename(self, id):
         """Get the basename of a path"""
         return os.path.basename(id)
-
