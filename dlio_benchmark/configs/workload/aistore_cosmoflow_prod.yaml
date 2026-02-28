@@ -1,0 +1,54 @@
+model:
+  name: aistore_cosmoflow_production
+  type: cosmoflow
+
+framework: pytorch
+
+workflow:
+  generate_data: True
+  train: True
+  checkpoint: True
+  evaluation: True
+
+dataset:
+  data_folder: s3://mlcommons-cosmoflow
+  format: npz
+  num_files_train: 4096      # Cosmology simulation data
+  num_files_eval: 512
+  num_samples_per_file: 1
+  record_length_bytes: 67108864  # 64MB per NPZ
+  record_length_bytes_stdev: 0
+  num_subfolders_train: 64
+  num_subfolders_eval: 8
+
+storage:
+  storage_type: aistore
+  storage_root: mlcommons-cosmoflow
+  storage_options:
+    endpoint_url: http://aistore-proxy:8080
+
+reader:
+  data_loader: pytorch
+  batch_size: 32
+  batch_size_eval: 32
+  read_threads: 16
+  file_shuffle: seed
+  sample_shuffle: seed
+  prefetch_size: 6
+
+train:
+  epochs: 50
+  computation_time: 0.3
+
+evaluation:
+  eval_time: 0.15
+  epochs_between_evals: 5
+
+checkpoint:
+  checkpoint_folder: /mnt/shared/checkpoints/cosmoflow
+  checkpoint_after_epoch: 10
+  epochs_between_checkpoints: 10
+  steps_between_checkpoints: 200
+
+
+

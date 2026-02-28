@@ -1,0 +1,54 @@
+model:
+  name: aistore_unet3d_production
+  type: unet3d
+
+framework: pytorch
+
+workflow:
+  generate_data: True
+  train: True
+  checkpoint: True
+  evaluation: True
+
+dataset:
+  data_folder: s3://mlcommons-unet3d
+  format: npy
+  num_files_train: 168       # Medical imaging dataset
+  num_files_eval: 42
+  num_samples_per_file: 1
+  record_length_bytes: 471859200  # ~450MB per 3D volume
+  record_length_bytes_stdev: 0
+  num_subfolders_train: 0
+  num_subfolders_eval: 0
+
+storage:
+  storage_type: aistore
+  storage_root: mlcommons-unet3d
+  storage_options:
+    endpoint_url: http://aistore-proxy:8080
+
+reader:
+  data_loader: pytorch
+  batch_size: 2              # Large 3D volumes
+  batch_size_eval: 2
+  read_threads: 8
+  file_shuffle: seed
+  sample_shuffle: seed
+  prefetch_size: 2
+
+train:
+  epochs: 4000
+  computation_time: 1.5      # Heavy 3D convolutions
+
+evaluation:
+  eval_time: 0.8
+  epochs_between_evals: 20
+
+checkpoint:
+  checkpoint_folder: /mnt/shared/checkpoints/unet3d
+  checkpoint_after_epoch: 100
+  epochs_between_checkpoints: 100
+  steps_between_checkpoints: 500
+
+
+

@@ -1,0 +1,44 @@
+model: 
+  name: aistore_test
+  type: cnn
+
+framework: pytorch
+
+workflow:
+  generate_data: True
+  train: True
+  checkpoint: False
+
+dataset: 
+  data_folder: s3://dlio-benchmark
+  format: npy
+  num_files_train: 16
+  num_files_eval: 4
+  num_samples_per_file: 1
+  record_length_bytes: 1048576      # 1MB per sample
+  record_length_bytes_stdev: 0
+  record_length_bytes_resize: 2097152
+  num_subfolders_train: 0
+  num_subfolders_eval: 0
+
+storage:
+  storage_type: aistore
+  storage_root: dlio-benchmark
+  storage_options:
+    endpoint_url: http://localhost:8080
+
+reader: 
+  data_loader: pytorch
+  batch_size: 4
+  read_threads: 4
+  file_shuffle: seed
+  sample_shuffle: seed
+
+train:
+  epochs: 3
+  computation_time: 0.5
+
+checkpoint:
+  checkpoint_folder: checkpoints/aistore_test
+  checkpoint_after_epoch: 5
+  epochs_between_checkpoints: 2
