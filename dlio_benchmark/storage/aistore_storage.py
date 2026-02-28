@@ -28,6 +28,11 @@ try:
     AISTORE_AVAILABLE = True
 except ImportError:
     AISTORE_AVAILABLE = False
+    # Define placeholders so mock.patch() can replace them in tests
+    Client = None
+    Bucket = None
+    Object = None
+    AISError = Exception
     logging.warning(
         "AIStore SDK not available. Install with: pip install aistore\n"
         "To use AIStore storage, set storage_type: aistore in your config."

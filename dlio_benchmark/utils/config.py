@@ -352,10 +352,10 @@ class ConfigArguments:
             if self.format not in (FormatType.NPZ, FormatType.NPY):
                 raise Exception(f"For AIStore using PyTorch framework, only NPZ or NPY formats are supported. Got format {self.format}")
             
-            # Validate that aistore SDK is available
-            try:
-                from aistore.sdk import Client
-            except ImportError:
+            # Validate that aistore SDK is available (check module-level flag
+            # so mock-based tests can patch AISTORE_AVAILABLE without the real SDK)
+            from dlio_benchmark.storage import aistore_storage as _ais_mod
+            if not _ais_mod.AISTORE_AVAILABLE:
                 raise Exception(
                     "The aistore package is required for AIStore storage but is not installed. "
                     "Install it with: pip install aistore"
