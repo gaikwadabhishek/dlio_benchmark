@@ -1,0 +1,50 @@
+model:
+  name: aistore_resnet50_production
+  type: cnn
+
+framework: pytorch
+
+workflow:
+  generate_data: True
+  train: True
+  checkpoint: False
+  evaluation: True
+
+dataset:
+  data_folder: ais://dlio-resnet50-prod
+  format: npy
+  num_files_train: 128116    # ImageNet-scale: 1.28M images / 10 per file
+  num_files_eval: 5000
+  num_samples_per_file: 10
+  record_length_bytes: 150528  # 224x224x3 float32
+  record_length_bytes_stdev: 0
+  num_subfolders_train: 1024
+  num_subfolders_eval: 50
+
+storage:
+  storage_type: aistore
+  storage_root: dlio-resnet50-prod
+  storage_options:
+    endpoint_url: https://asr.ord.oci.aistore.nvidia.com:51080
+    skip_verify: true
+
+reader:
+  data_loader: pytorch
+  batch_size: 256
+  batch_size_eval: 256
+  read_threads: 16
+  file_shuffle: seed
+  sample_shuffle: seed
+  prefetch_size: 8
+  transfer_size: 262144    # 256KB transfers
+
+train:
+  epochs: 90
+  computation_time: 0.1    # Simulate ResNet50 forward+backward
+
+evaluation:
+  eval_time: 0.05
+  epochs_between_evals: 10
+
+metric:
+  au: 0.90

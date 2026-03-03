@@ -1,0 +1,41 @@
+model:
+  name: resnet50
+  type: cnn
+  model_size: 11689512
+
+framework: pytorch
+
+workflow:
+  generate_data: True
+  train: True
+  checkpoint: False
+
+dataset:
+  data_folder: ais://dlio-benchmark-ord
+  format: npz
+  num_files_train: 16
+  num_samples_per_file: 4
+  record_length_bytes: 150000
+  record_length_bytes_stdev: 0
+  record_length_bytes_resize: 0
+
+storage:
+  storage_type: aistore
+  storage_root: dlio-benchmark-ord
+  storage_options:
+    endpoint_url: https://asr.ord.oci.aistore.nvidia.com:51080
+    skip_verify: true
+
+reader:
+  data_loader: pytorch
+  batch_size: 4
+  read_threads: 2
+  file_shuffle: seed
+  sample_shuffle: seed
+
+train:
+  epochs: 2
+  computation_time: 0.01
+
+metric:
+  au: 0.90

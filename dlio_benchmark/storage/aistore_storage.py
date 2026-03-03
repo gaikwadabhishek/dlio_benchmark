@@ -72,9 +72,22 @@ class AIStoreStorage(DataStorage):
         # AIStore endpoint (default: http://localhost:8080)
         self.endpoint = storage_options.get("endpoint_url", "http://localhost:8080")
 
+        # TLS / auth options
+        skip_verify = str(storage_options.get("skip_verify", "false")).lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+        ca_cert = storage_options.get("ca_cert", None)
+        token = storage_options.get("token", None)
+
         # Initialize AIStore client
-        # Other parameters can be configured from environment variables
-        self.client = Client(self.endpoint)
+        self.client = Client(
+            self.endpoint,
+            skip_verify=skip_verify,
+            ca_cert=ca_cert,
+            token=token,
+        )
 
         # Bucket name from namespace
         self.bucket_name = self.namespace.name
